@@ -1,7 +1,7 @@
 NYCoin Seeder
 ====================
 
-nycoin-seeder is a crawler for the Litecoin Cash network, which 
+nycoin-seeder is a crawler for the NewYorkCoin network, which
 exposes a list of reliable nodes via a built-in DNS server, or instead
 just generates that list to push to a remote CloudFlare server.
 
