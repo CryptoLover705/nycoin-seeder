@@ -53,4 +53,4 @@ RUN cd /work && make
 # Set default CMD
 CMD /work/dnsseed -h dnsseed.nycoin.community -n ns.nycoin.community -m dns@nycoin.community
 
-EXPOSE 53
+EXPOSE 53:53/udp
