@@ -31,13 +31,15 @@ RUN apt-get install -y git \
             build-essential \
             libboost-all-dev \
             libssl-dev \
-            libtool
-
+            libtool \
+            vim \
+            curl \
+            nginx
 # ===============================================================================
 # Set working directory
 #
 WORKDIR /work
-
+COPY docker/nginx-default /etc/nginx/sites-enabled/default
 # ===============================================================================
 # Install configuration
 #
@@ -47,10 +49,11 @@ WORKDIR /work
 #
 
 ## Copy folders
+
 RUN git clone https://github.com/NewYorkCoin-NYC/nycoin-seeder.git /work
 RUN cd /work && make
 
 # Set default CMD
-CMD /work/dnsseed -h dnsseed.nycoin.community -n ns.nycoin.community -m dns@nycoin.community
+CMD service nginx start  && /work/dnsseed -h dnsseed.nycoin.community -n ns.nycoin.community -m dns@nycoin.community
 
 EXPOSE 53:53/udp
