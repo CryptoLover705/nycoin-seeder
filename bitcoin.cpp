@@ -290,7 +290,7 @@ bool TestNode(const CService &cip, int &ban, int &clientV, std::string &clientSV
     clientV = node.GetClientVersion();
     clientSV = node.GetClientSubVersion();
     blocks = node.GetStartingHeight();
-    if (ret && clientSV.compare("/Satoshi:1.0.0.1/") != 0 && clientSV.compare("/Satoshi:1.0.1.1/") != 0 && clientSV.find(string("NewYorkCoin")) == string::npos)
+    if (ret && clientSV.find(string("NewYorkCoin")) == string::npos)
       ret = 0;
     printf("%s - %s: %s!!!\n", cip.ToString().c_str(), clientSV.c_str(), ret ? "GOOD" : "BAD");
     return ret;
