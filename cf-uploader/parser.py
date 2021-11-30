@@ -12,6 +12,14 @@ def _parse_ipv4(ip):
     return addr, port
 
 
+def _parse_ipv6(ip):
+
+    """ Parse an ipv6 address and port number. """
+
+    addr, port = ip.split(']:')
+    return addr.replace("[", ""), port
+
+
 def isipv6(ip):
 
     """ Extremely naive IPV6 check. """
@@ -23,7 +31,10 @@ def parse_ip(ip):
 
     """ Return an ip address and port number from the string """
 
-    return _parse_ipv4(ip)
+    if isipv6(ip):
+        return _parse_ipv6(ip)
+    else:
+        return _parse_ipv4(ip)
 
 
 def read_hard_seeds(hard_seeds_file):
@@ -52,7 +63,7 @@ def read_hard_seeds(hard_seeds_file):
     return hard_seeds
 
 
-def read_seed_dump(seeds_file, valid_port="17020"):
+def read_seed_dump(seeds_file, valid_port):
 
     """ Read the good ip addresses from the seeds dump. """
 
@@ -66,10 +77,6 @@ def read_seed_dump(seeds_file, valid_port="17020"):
                 continue
 
             components = line.split()
-
-            if isipv6(components[0]):
-                logger.info("Skipping IPV6 record: {}".format(components[0]))
-                continue
 
             try:
                 ip_addr, port = parse_ip(components[0])

@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2009-2013 The Bitcoin developers
+// Copyright (c) 2014-2021 The NewYorkCoin Community developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -1073,7 +1074,7 @@ bool operator<(const CService& a, const CService& b)
 
 bool CService::GetSockAddr(struct sockaddr* paddr, socklen_t *addrlen) const
 {
-    if (IsIPv4()) {
+    if (sForceIP != "6" && IsIPv4()) {
         if (*addrlen < (socklen_t)sizeof(struct sockaddr_in))
             return false;
         *addrlen = sizeof(struct sockaddr_in);
@@ -1085,7 +1086,7 @@ bool CService::GetSockAddr(struct sockaddr* paddr, socklen_t *addrlen) const
         paddrin->sin_port = htons(port);
         return true;
     }
-    if (IsIPv6()) {
+    if (sForceIP != "4" && IsIPv6()) {
         if (*addrlen < (socklen_t)sizeof(struct sockaddr_in6))
             return false;
         *addrlen = sizeof(struct sockaddr_in6);

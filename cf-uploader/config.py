@@ -3,23 +3,22 @@
 import os
 import logging
 import ConfigParser
+import io
 
 logger = logging.getLogger(__name__)
 
-CONF_FILE_LOCATIONS = [
-    '/etc/seeder.conf',
-    os.path.expanduser('~/.seeder/seeder.conf'),
-]
 
+def get_conf_file_contents():
 
-def get_conf_file():
+    """ Test for and read the contents of the config file. """
 
-    """ Find the first occurrence of a conf file and return it, or None if they don't exist. """
-
-    for conf_file in CONF_FILE_LOCATIONS:
-        if os.path.exists(conf_file):
-            logger.info("Found conf file {}".format(conf_file))
-            return conf_file
+    conf_file = '../settings.conf'
+    if os.path.exists(conf_file):
+        logger.info("Found conf file {}".format(conf_file))
+        file_content = ''
+        with open(conf_file, 'r') as f:
+            file_content = '[general]\n' + f.read()
+        return file_content
 
     return None
 
@@ -39,7 +38,7 @@ def read_config_section(config, section):
             configuration[option] = config.get(section, option)
             logger.debug("Successfully read option {}: {}".format(option, configuration[option]))
 
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             logger.warning("Could not read config option {} from section {}".format(option, section))
             configuration[option] = None
 
@@ -47,13 +46,6 @@ def read_config_section(config, section):
 
 
 def read_local_config():
-    config_parser = ConfigParser.ConfigParser()
-    config_parser.read(get_conf_file())
+    config_parser = configparser.RawConfigParser()
+    config_parser.readfp(io.StringIO(get_conf_file_contents()))
     return read_config_section(config_parser, "general")
-
-
-
-
-
-
-

@@ -8,8 +8,6 @@
 
 #define BITCOIN_SEED_NONCE  0x0539a019ca550825ULL
 
-#define printf my_printf
-
 using namespace std;
 
 class CNode {
@@ -38,31 +36,29 @@ class CNode {
     nHeaderStart = vSend.size();
     vSend << CMessageHeader(pszCommand, 0);
     nMessageStart = vSend.size();
-    printf("%s: SEND %s\n", ToString(you).c_str(), pszCommand); 
+//    printf("%s: SEND %s\n", ToString(you).c_str(), pszCommand);
   }
-  
+
   void AbortMessage() {
     if (nHeaderStart == -1) return;
     vSend.resize(nHeaderStart);
     nHeaderStart = -1;
     nMessageStart = -1;
   }
-  
+
   void EndMessage() {
     if (nHeaderStart == -1) return;
     unsigned int nSize = vSend.size() - nMessageStart;
     memcpy((char*)&vSend[nHeaderStart] + offsetof(CMessageHeader, nMessageSize), &nSize, sizeof(nSize));
-    if (vSend.GetVersion() >= 209) {
-      uint256 hash = Hash(vSend.begin() + nMessageStart, vSend.end());
-      unsigned int nChecksum = 0;
-      memcpy(&nChecksum, &hash, sizeof(nChecksum));
-      assert(nMessageStart - nHeaderStart >= offsetof(CMessageHeader, nChecksum) + sizeof(nChecksum));
-      memcpy((char*)&vSend[nHeaderStart] + offsetof(CMessageHeader, nChecksum), &nChecksum, sizeof(nChecksum));
-    }
+    uint256 hash = Hash(vSend.begin() + nMessageStart, vSend.end());
+    unsigned int nChecksum = 0;
+    memcpy(&nChecksum, &hash, sizeof(nChecksum));
+    assert(nMessageStart - nHeaderStart >= offsetof(CMessageHeader, nChecksum) + sizeof(nChecksum));
+    memcpy((char*)&vSend[nHeaderStart] + offsetof(CMessageHeader, nChecksum), &nChecksum, sizeof(nChecksum));
     nHeaderStart = -1;
     nMessageStart = -1;
   }
-  
+
   void Send() {
     if (sock == INVALID_SOCKET) return;
     if (vSend.empty()) return;
@@ -74,21 +70,21 @@ class CNode {
       sock = INVALID_SOCKET;
     }
   }
-  
+
   void PushVersion() {
     int64 nTime = time(NULL);
     uint64 nLocalNonce = BITCOIN_SEED_NONCE;
     int64 nLocalServices = 0;
     CAddress me(CService("0.0.0.0"));
     BeginMessage("version");
-    int nBestHeight = GetRequireHeight();
-    string ver = "/NewYorkCoin-seeder:0.01/";
-    vSend << PROTOCOL_VERSION << nLocalServices << nTime << you << me << nLocalNonce << ver << nBestHeight;
+    string ver = "/" + sAppName + "/";
+    uint8_t fRelayTxs = 0;
+    vSend << cfg_protocol_version << nLocalServices << nTime << you << me << nLocalNonce << ver << nCurrentBlock << fRelayTxs;
     EndMessage();
   }
- 
+
   void GotVersion() {
-    printf("\n%s: version %i\n", ToString(you).c_str(), nVersion);
+    // printf("\n%s: version %i\n", ToString(you).c_str(), nVersion);
     if (vAddr) {
       BeginMessage("getaddr");
       EndMessage();
@@ -99,43 +95,36 @@ class CNode {
   }
 
   bool ProcessMessage(string strCommand, CDataStream& vRecv) {
-    printf("%s: RECV %s\n", ToString(you).c_str(), strCommand.c_str());
+//    printf("%s: RECV %s\n", ToString(you).c_str(), strCommand.c_str());
     if (strCommand == "version") {
       int64 nTime;
       CAddress addrMe;
       CAddress addrFrom;
       uint64 nNonce = 1;
       vRecv >> nVersion >> you.nServices >> nTime >> addrMe;
-      if (nVersion == 10300) nVersion = 300;
-      if (nVersion >= 106 && !vRecv.empty())
+      if (!vRecv.empty())
         vRecv >> addrFrom >> nNonce;
-      if (nVersion >= 106 && !vRecv.empty())
+      if (!vRecv.empty())
         vRecv >> strSubVer;
-      if (nVersion >= 209 && !vRecv.empty())
+      if (!vRecv.empty())
         vRecv >> nStartingHeight;
-      
-      if (nVersion >= 209) {
-        BeginMessage("verack");
-        EndMessage();
-      }
-      vSend.SetVersion(min(nVersion, PROTOCOL_VERSION));
-      if (nVersion < 209) {
-        this->vRecv.SetVersion(min(nVersion, PROTOCOL_VERSION));
-        GotVersion();
-      }
+      // Change version
+      BeginMessage("verack");
+      EndMessage();
+      vSend.SetVersion(min(nVersion, cfg_protocol_version));
       return false;
     }
-    
+
     if (strCommand == "verack") {
-      this->vRecv.SetVersion(min(nVersion, PROTOCOL_VERSION));
+      this->vRecv.SetVersion(min(nVersion, cfg_protocol_version));
       GotVersion();
       return false;
     }
-    
+
     if (strCommand == "addr" && vAddr) {
       vector<CAddress> vAddrNew;
       vRecv >> vAddrNew;
-      printf("%s: got %i addresses\n", ToString(you).c_str(), (int)vAddrNew.size());
+      // printf("%s: got %i addresses\n", ToString(you).c_str(), (int)vAddrNew.size());
       int64 now = time(NULL);
       vector<CAddress>::iterator it = vAddrNew.begin();
       if (vAddrNew.size() > 1) {
@@ -143,25 +132,25 @@ class CNode {
       }
       while (it != vAddrNew.end()) {
         CAddress &addr = *it;
-        printf("%s: got address %s\n", ToString(you).c_str(), addr.ToString().c_str(), (int)(vAddr->size()));
+//        printf("%s: got address %s\n", ToString(you).c_str(), addr.ToString().c_str(), (int)(vAddr->size()));
         it++;
         if (addr.nTime <= 100000000 || addr.nTime > now + 600)
           addr.nTime = now - 5 * 86400;
         if (addr.nTime > now - 604800)
           vAddr->push_back(addr);
-        printf("%s: added address %s (#%i)\n", ToString(you).c_str(), addr.ToString().c_str(), (int)(vAddr->size()));
+//        printf("%s: added address %s (#%i)\n", ToString(you).c_str(), addr.ToString().c_str(), (int)(vAddr->size()));
         if (vAddr->size() > 1000) {doneAfter = 1; return true; }
       }
       return false;
     }
-    
+
     return false;
   }
-  
+
   bool ProcessMessages() {
     if (vRecv.empty()) return false;
     do {
-      CDataStream::iterator pstart = search(vRecv.begin(), vRecv.end(), BEGIN(pchMessageStart), END(pchMessageStart));
+      CDataStream::iterator pstart = search(vRecv.begin(), vRecv.end(), BEGIN(cfg_message_start), END(cfg_message_start));
       int nHeaderSize = vRecv.GetSerializeSize(CMessageHeader());
       if (vRecv.end() - pstart < nHeaderSize) {
         if (vRecv.size() > nHeaderSize) {
@@ -173,46 +162,42 @@ class CNode {
       vector<char> vHeaderSave(vRecv.begin(), vRecv.begin() + nHeaderSize);
       CMessageHeader hdr;
       vRecv >> hdr;
-      if (!hdr.IsValid()) { 
-        printf("%s: BAD (invalid header)\n", ToString(you).c_str());
+      if (!hdr.IsValid()) {
+        // printf("%s: BAD (invalid header)\n", ToString(you).c_str());
         ban = 100000; return true;
       }
       string strCommand = hdr.GetCommand();
       unsigned int nMessageSize = hdr.nMessageSize;
-      if (nMessageSize > MAX_SIZE) { 
-        printf("%s: BAD (message too large)\n", ToString(you).c_str());
+      if (nMessageSize > MAX_SIZE) {
+        // printf("%s: BAD (message too large)\n", ToString(you).c_str());
         ban = 100000;
-        return true; 
+        return true;
       }
       if (nMessageSize > vRecv.size()) {
         vRecv.insert(vRecv.begin(), vHeaderSave.begin(), vHeaderSave.end());
         break;
       }
-      if (vRecv.GetVersion() >= 209) {
-        uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
-        unsigned int nChecksum = 0;
-        memcpy(&nChecksum, &hash, sizeof(nChecksum));
-        if (nChecksum != hdr.nChecksum) continue;
-      }
+      // Checksum
+      uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
+      unsigned int nChecksum = 0;
+      memcpy(&nChecksum, &hash, sizeof(nChecksum));
+      if (nChecksum != hdr.nChecksum) continue;
+
       CDataStream vMsg(vRecv.begin(), vRecv.begin() + nMessageSize, vRecv.nType, vRecv.nVersion);
       vRecv.ignore(nMessageSize);
       if (ProcessMessage(strCommand, vMsg))
         return true;
-      printf("%s: done processing %s\n", ToString(you).c_str(), strCommand.c_str());
+//      printf("%s: done processing %s\n", ToString(you).c_str(), strCommand.c_str());
     } while(1);
     return false;
   }
-  
+
 public:
   CNode(const CService& ip, vector<CAddress>* vAddrIn) : you(ip), nHeaderStart(-1), nMessageStart(-1), vAddr(vAddrIn), ban(0), doneAfter(0), nVersion(0) {
     vSend.SetType(SER_NETWORK);
-    vSend.SetVersion(0);
+    vSend.SetVersion(cfg_init_proto_version);
     vRecv.SetType(SER_NETWORK);
-    vRecv.SetVersion(0);
-    if (time(NULL) > 1329696000) {
-      vSend.SetVersion(209);
-      vRecv.SetVersion(209);
-    }
+    vRecv.SetVersion(cfg_init_proto_version);
   }
   bool Run() {
     bool res = true;
@@ -222,9 +207,11 @@ public:
     int64 now;
     while (now = time(NULL), ban == 0 && (doneAfter == 0 || doneAfter > now) && sock != INVALID_SOCKET) {
       char pchBuf[0x10000];
-      fd_set set;
-      FD_ZERO(&set);
-      FD_SET(sock,&set);
+      fd_set read_set, except_set;
+      FD_ZERO(&read_set);
+      FD_ZERO(&except_set);
+      FD_SET(sock,&read_set);
+      FD_SET(sock,&except_set);
       struct timeval wa;
       if (doneAfter) {
         wa.tv_sec = doneAfter - now;
@@ -233,7 +220,7 @@ public:
         wa.tv_sec = GetTimeout();
         wa.tv_usec = 0;
       }
-      int ret = select(sock+1, &set, NULL, &set, &wa);
+      int ret = select(sock+1, &read_set, NULL, &except_set, &wa);
       if (ret != 1) {
         if (!doneAfter) res = false;
         break;
@@ -260,7 +247,7 @@ public:
     sock = INVALID_SOCKET;
     return (ban == 0) && res;
   }
-  
+
   int GetBan() {
     return ban;
   }
@@ -268,31 +255,37 @@ public:
   int GetClientVersion() {
     return nVersion;
   }
-  
+
   std::string GetClientSubVersion() {
     return strSubVer;
   }
-  
+
   int GetStartingHeight() {
     return nStartingHeight;
   }
+
+  uint64_t GetServices() {
+    return you.nServices;
+  }
 };
 
-bool TestNode(const CService &cip, int &ban, int &clientV, std::string &clientSV, int &blocks, vector<CAddress>* vAddr) {
+bool TestNode(const CService &cip, int &ban, int &clientV, std::string &clientSV, int &blocks, bool &insync, vector<CAddress>* vAddr, uint64_t& services) {
   try {
     CNode node(cip, vAddr);
     bool ret = node.Run();
-    if (!ret) {
-      ban = node.GetBan();
-    } else {
-      ban = 0;
-    }
+    if (!ret)
+		ban = node.GetBan();
+	else
+		ban = 0;
     clientV = node.GetClientVersion();
     clientSV = node.GetClientSubVersion();
     blocks = node.GetStartingHeight();
-    if (ret && clientSV.find(string("NewYorkCoin")) == string::npos)
-      ret = 0;
-    printf("%s - %s: %s!!!\n", cip.ToString().c_str(), clientSV.c_str(), ret ? "GOOD" : "BAD");
+    if (bCurrentBlockFromExplorer)
+      insync = (blocks >= nCurrentBlock-5 && blocks <= nCurrentBlock+5);
+    else
+      insync = (blocks >= nCurrentBlock);
+    services = node.GetServices();
+//  printf("%s: %s!!!\n", cip.ToString().c_str(), ret ? "GOOD" : "BAD");
     return ret;
   } catch(std::ios_base::failure& e) {
     ban = 0;

@@ -22,11 +22,9 @@ static const char* ppszTypeName[] =
     "block",
 };
 
-unsigned char pchMessageStart[4] = { 0xc0, 0xc0, 0xc0, 0xc0 };
-
 CMessageHeader::CMessageHeader()
 {
-    memcpy(pchMessageStart, ::pchMessageStart, sizeof(pchMessageStart));
+    memcpy(cfg_message_start, ::cfg_message_start, sizeof(cfg_message_start));
     memset(pchCommand, 0, sizeof(pchCommand));
     pchCommand[1] = 1;
     nMessageSize = -1;
@@ -35,8 +33,10 @@ CMessageHeader::CMessageHeader()
 
 CMessageHeader::CMessageHeader(const char* pszCommand, unsigned int nMessageSizeIn)
 {
-    memcpy(pchMessageStart, ::pchMessageStart, sizeof(pchMessageStart));
-    strncpy(pchCommand, pszCommand, COMMAND_SIZE);
+    memcpy(cfg_message_start, ::cfg_message_start, sizeof(cfg_message_start));
+    size_t command_len = strnlen(pszCommand, COMMAND_SIZE);
+    memcpy(pchCommand, pszCommand, command_len);
+    memset(pchCommand + command_len, 0, COMMAND_SIZE - command_len);
     nMessageSize = nMessageSizeIn;
     nChecksum = 0;
 }
@@ -52,7 +52,7 @@ std::string CMessageHeader::GetCommand() const
 bool CMessageHeader::IsValid() const
 {
     // Check start string
-    if (memcmp(pchMessageStart, ::pchMessageStart, sizeof(pchMessageStart)) != 0)
+    if (memcmp(cfg_message_start, ::cfg_message_start, sizeof(cfg_message_start)) != 0)
         return false;
 
     // Check the command string for errors

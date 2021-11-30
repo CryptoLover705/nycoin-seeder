@@ -28,7 +28,9 @@ static inline unsigned short GetDefaultPort(const bool testnet = fTestNet)
 //  (4) size
 //  (4) checksum
 
-extern unsigned char pchMessageStart[4];
+extern int cfg_caddr_time_version;
+extern int cfg_init_proto_version;
+extern unsigned char cfg_message_start[4];
 
 class CMessageHeader
 {
@@ -51,7 +53,7 @@ class CMessageHeader
     // TODO: make private (improves encapsulation)
     public:
         enum { COMMAND_SIZE=12 };
-        char pchMessageStart[sizeof(::pchMessageStart)];
+        char pchMessageStart[sizeof(::cfg_message_start)];
         char pchCommand[COMMAND_SIZE];
         unsigned int nMessageSize;
         unsigned int nChecksum;
@@ -60,6 +62,10 @@ class CMessageHeader
 enum
 {
     NODE_NETWORK = (1 << 0),
+    NODE_BLOOM = (1 << 2),
+    NODE_WITNESS = (1 << 3),
+    NODE_COMPACT_FILTERS = (1 << 6),
+    NODE_NETWORK_LIMITED = (1 << 10),
 };
 
 class CAddress : public CService
@@ -78,7 +84,7 @@ class CAddress : public CService
                  pthis->Init();
              if (nType & SER_DISK)
              READWRITE(nVersion);
-             if ((nType & SER_DISK) || (nVersion >= 31402 && !(nType & SER_GETHASH)))
+             if ((nType & SER_DISK) || ((cfg_caddr_time_version == 0 ? nVersion != cfg_init_proto_version : nVersion >= cfg_caddr_time_version) && !(nType & SER_GETHASH)))
              READWRITE(nTime);
              READWRITE(nServices);
              READWRITE(*pip);

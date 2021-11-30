@@ -22,10 +22,7 @@ typedef unsigned long long  uint64;
 #define for  if (false) ; else for
 #endif
 
-
-inline int Testuint256AdHoc(std::vector<std::string> vArg);
-
-
+extern int cfg_protocol_version;
 
 // We have to keep a separate base class without constructors
 // so the compiler will let us use it in a union
